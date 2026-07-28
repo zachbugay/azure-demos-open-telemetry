@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Bugay.Data/Bugay.Data.csproj" />
+  <Project Path="Bugay.Data.Generator/Bugay.Data.Generator.csproj" />
+  <Project Path="Bugay.Database/Bugay.Database.csproj" />
+  <Project Path="Bugay.Func.Consumer/Bugay.Func.Consumer.csproj" />
+  <Project Path="Bugay.Func.Contracts/Bugay.Func.Contracts.csproj" />
+  <Project Path="Bugay.Func.Producer/Bugay.Func.Producer.csproj" />
+</Solution>

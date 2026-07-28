@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/alpha/azure.yaml.json
+
+name: bugay-terraform-starter
+metadata:
+  template: bugay-terraform-starter
+infra:
+  provider: terraform
+services:
+  consumer:
+    project: ./src/Bugay.Func.Consumer/
+    language: dotnet
+    host: function
+  producer:
+    project: ./src/Bugay.Func.Producer/
+    language: dotnet
+    host: function
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      run: ./infra/hooks/setup-database/setup-database.sh
+      interactive: false
+  postdeploy:
+    posix:
+      shell: sh
+      run: ./infra/hooks/import-apim-api/import-apim-api.sh
+      interactive: false
