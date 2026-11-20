@@ -1,11 +1,11 @@
+using Bogus;
+using Bugay.Func.Contracts;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Bogus;
-using Bugay.Func.Contracts;
-using Microsoft.Extensions.Logging;
 
 namespace Bugay.Data.Generator;
 

@@ -1,5 +1,4 @@
 -- 0003: Transactions table (tied to an Account)
--- Amount is a signed decimal: positive = increment, negative = decrement.
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'Transactions' AND schema_id = SCHEMA_ID(N'dbo'))
 BEGIN
     CREATE TABLE dbo.Transactions

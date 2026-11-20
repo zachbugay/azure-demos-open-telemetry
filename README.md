@@ -21,6 +21,8 @@ The `grant-uami` post-provision hook makes the user defined managed identity (ua
 
 ## Build
 
+We are using the latest [Azure Functions Dotnet Worker](https://github.com/Azure/azure-functions-dotnet-worker).
+
 ```bash
 dotnet build src/Bugay.Funcs.slnx
 ```

@@ -1,6 +1,4 @@
 -- 0001: Users table
--- Idempotent: safe to re-run. DbUp journals executed scripts, but the guards
--- below keep the script harmless even if applied manually.
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'Users' AND schema_id = SCHEMA_ID(N'dbo'))
 BEGIN
     CREATE TABLE dbo.Users

@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Default Profile",
+    "Projects": [
+      {
+        "Path": "Bugay.Func.Consumer\\Bugay.Func.Consumer.csproj",
+        "Action": "Start",
+        "DebugTarget": "Bugay.Func.Consumer"
+      },
+      {
+        "Path": "Bugay.Func.Producer\\Bugay.Func.Producer.csproj",
+        "Action": "Start",
+        "DebugTarget": "Bugay.Func.Producer"
+      }
+    ]
+  }
+]

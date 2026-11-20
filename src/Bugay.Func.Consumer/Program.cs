@@ -1,8 +1,6 @@
-using System;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bugay.Data;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
+using System;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
