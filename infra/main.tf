@@ -114,8 +114,8 @@ module "loganalytics" {
   tags             = local.tags
 }
 
-module "applicationinsights" {
-  source                     = "./core/monitor/applicationinsights"
+module "app_insights" {
+  source                     = "./core/monitor/application_insights"
   location                   = var.location
   environment_name           = var.environment_name
   workload_name              = local.workload
@@ -156,7 +156,7 @@ module "role_assignments" {
     },
     {
       application_insights = {
-        scope = module.applicationinsights.id
+        scope = module.app_insights.id
         principal_ids = [
           data.azurerm_client_config.current.object_id,
           module.uami.uami_principal_id,
@@ -264,7 +264,7 @@ module "functionapp" {
   uami_tenant_id                         = data.azurerm_client_config.current.tenant_id
   runtime_name                           = "dotnet-isolated"
   runtime_version                        = "10.0"
-  application_insights_connection_string = module.applicationinsights.connection_string
+  application_insights_connection_string = module.app_insights.connection_string
   service_name                           = each.value
 
   extra_app_settings = {
@@ -338,8 +338,8 @@ module "apim" {
   virtual_network_type = "External"
 
   application_insights_enabled = true
-  application_insights_id      = module.applicationinsights.id
-  application_insights_name    = module.applicationinsights.name
+  application_insights_id      = module.app_insights.id
+  application_insights_name    = module.app_insights.name
 
   uami_id        = module.uami.uami_id
   uami_client_id = module.uami.uami_client_id

@@ -1,13 +1,6 @@
 # Azure Demos
 
-An `azd` + Terraform template with two .NET 10 isolated Azure Functions and a database-first data layer.
-
-### Data model
-
-- `Users` (Id GUID PK, FirstName, LastName, CreatedAtUtc)
-- `Accounts` (Id GUID PK, UserId FK -> Users, Name, CreatedAtUtc) — a user has many accounts
-- `Transactions` (Id GUID PK, AccountId FK -> Accounts, Amount decimal(19,4) signed, CreatedAtUtc)
-  - positive decimal `Accounts.Amount` increments, negative values decrement.
+An `azd` + Terraform template with two .NET 11 isolated Azure Functions and a database-first data layer.
 
 ## Deploy
 
@@ -22,7 +15,7 @@ and both function apps wired with:
 
 - `ServiceBusConnection__fullyQualifiedNamespace`
 - `ServiceBusCommandsQueueName`
-- `SqlConnectionString`).
+- `SqlConnectionString`.
 
 The `grant-uami` post-provision hook makes the user defined managed identity (uami) function's identity `db_owner`.
 
@@ -45,7 +38,7 @@ dotnet run --project src/Bugay.Database -- "Server=tcp:${SQL_FQDN},1433;Database
 
 ## Reverse-engineer the entities (database-first)
 
-Find documentation about (Reverse-engineering/Scaffolding entities here.)[https://learn.microsoft.com/en-us/ef/core/managing-schemas/scaffolding/?tabs=dotnet-core-cli]
+Find documentation about [Reverse-engineering/Scaffolding entities here.](https://learn.microsoft.com/en-us/ef/core/managing-schemas/scaffolding/?tabs=dotnet-core-cli)
 
 ```bash
 cd ./src/Bugay.Data/

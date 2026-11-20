@@ -64,11 +64,11 @@ output "AZURE_LOG_ANALYTICS_WORKSPACE_ID" {
 }
 
 output "AZURE_APPLICATION_INSIGHTS_ID" {
-  value = module.applicationinsights.id
+  value = module.app_insights.id
 }
 
 output "APPLICATIONINSIGHTS_CONNECTION_STRING" {
-  value     = module.applicationinsights.connection_string
+  value     = module.app_insights.connection_string
   sensitive = true
 }
 
