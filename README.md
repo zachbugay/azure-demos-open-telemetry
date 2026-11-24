@@ -118,3 +118,9 @@ dotnet ef dbcontext scaffold \
 
 The scripts are idempotent and DbUp within the Bugay.Database/Bugay.Database.csproj journals what's been run.
 Re-running Bugay.Dataabse project is safe.
+
+## Run Generator Locally
+
+```bash
+docker compose run --build --rm -e GeneratorUserCount=25 data-generator
+```
