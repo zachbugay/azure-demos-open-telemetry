@@ -65,6 +65,25 @@ neither an API Management subscription key nor Azure credentials. Existing
 `ApimBaseAddress` configuration still targets API Management. Azure Monitor
 export is enabled when `APPLICATIONINSIGHTS_CONNECTION_STRING` is configured.
 
+### View local telemetry in Seq
+
+Compose also starts Seq at `http://localhost:8081`. Authentication is disabled
+for this local demo. By running Seq, you accept the Seq End User License Agreement.
+Telemetry is persisted in the `seq-data` volume.
+
+The generator and both Functions export telemetry to Seq using OpenTelemetry.
+Run the generator, then open Seq to search events and view traces. Open a span's
+trace view to follow related operations across services, including SQL calls.
+
+Inside Compose, the exporter uses `http://seq:5341/ingest/otlp` with the
+`http/protobuf` protocol. For applications running directly on Windows, use
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:8081/ingest/otlp` and
+`OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` instead. Set `OTEL_SERVICE_NAME` to
+the application name.
+
+OTLP export is enabled only when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
+The existing Azure Monitor configuration remains available independently.
+
 ## Create the database schema (DbUp)
 
 The SQL server is Entra-only, so sign in first (`az login`) with database access.

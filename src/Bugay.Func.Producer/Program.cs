@@ -26,6 +26,11 @@ builder.Logging.AddOpenTelemetry(logging =>
 var telemetry = builder.Services.AddOpenTelemetry()
     .UseFunctionsWorkerDefaults();
 
+if (!string.IsNullOrWhiteSpace(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    telemetry.UseOtlpExporter();
+}
+
 if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
 {
     telemetry.UseAzureMonitorExporter(options =>

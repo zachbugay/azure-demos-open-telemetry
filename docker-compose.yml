@@ -2,10 +2,22 @@ name: azure-demos-open-telemetry
 
 x-service-bus-connection: &service-bus-connection >-
   Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
-x-sql-password: &sql-password ${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}
-x-storage-connection: &storage-connection DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+x-sql-password: &sql-password >-
+  ${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}
+x-storage-connection: &storage-connection >-
+  DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
 
 services:
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "True"
+    ports:
+      - "8081:80"
+    volumes:
+      - seq-data:/data
+
   sql:
     image: mcr.microsoft.com/mssql/azure-sql-db-server:latest
     environment:
@@ -18,7 +30,8 @@ services:
     volumes:
       - sql-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}", "-Q", "SELECT 1"]
+      test: [
+        "CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}", "-Q", "SELECT 1"]
       interval: 3s
       timeout: 5s
       retries: 60
@@ -92,6 +105,8 @@ services:
       context: .
       dockerfile: src/Bugay.Func.Producer/Dockerfile
     depends_on:
+      seq:
+        condition: service_started
       sql:
         condition: service_healthy
       azurite:
@@ -107,17 +122,17 @@ services:
       FUNCTIONS_WORKER_RUNTIME: dotnet-isolated
       ServiceBusConnection: *service-bus-connection
       ServiceBusCommandsQueueName: sbq-commands
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://seq:5341/ingest/otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: Bugay.Func.Producer
     ports:
       - "7071:80"
     healthcheck:
-      test:
-        - CMD
-        - /bin/bash
-        - -c
-        - >-
-          exec 3<>/dev/tcp/localhost/80 &&
-          printf 'GET /admin/host/status HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
-          grep -qE '"state"[[:space:]]*:[[:space:]]*"Running"' <&3
+      test: [
+        "CMD", "/bin/bash", "-c",
+        "exec 3<>/dev/tcp/localhost/80 &&
+          printf 'GET /admin/host/status HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 &&
+          grep -qE '\"state\"[[:space:]]*:[[:space:]]*\"Running\"' <&3"]
       interval: 3s
       timeout: 5s
       retries: 60
@@ -128,6 +143,8 @@ services:
       context: .
       dockerfile: src/Bugay.Func.Consumer/Dockerfile
     depends_on:
+      seq:
+        condition: service_started
       sql:
         condition: service_healthy
       azurite:
@@ -143,6 +160,9 @@ services:
       FUNCTIONS_WORKER_RUNTIME: dotnet-isolated
       ServiceBusConnection: *service-bus-connection
       ServiceBusCommandsQueueName: sbq-commands
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://seq:5341/ingest/otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: Bugay.Func.Consumer
       SqlConnectionString: >-
         Server=sql,1433;Database=BugayDemo;User Id=sa;Password=${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123};Encrypt=True;TrustServerCertificate=True;
     ports:
@@ -155,6 +175,8 @@ services:
       context: .
       dockerfile: src/Bugay.Data.Generator/Dockerfile
     depends_on:
+      seq:
+        condition: service_started
       producer:
         condition: service_healthy
       consumer:
@@ -162,8 +184,12 @@ services:
     environment:
       ProducerBaseAddress: http://producer/api/
       GeneratorUserCount: ${GENERATOR_USER_COUNT:-10}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://seq:5341/ingest/otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: Bugay.Data.Generator
     restart: "no"
 
 volumes:
   azurite-data:
   sql-data:
+  seq-data:

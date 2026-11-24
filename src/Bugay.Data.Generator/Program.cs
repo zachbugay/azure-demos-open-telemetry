@@ -4,6 +4,7 @@ using Bugay.Data.Generator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using System;
@@ -12,6 +13,11 @@ var builder = Host.CreateApplicationBuilder(args);
 var configuration = builder.Configuration;
 
 var telemetry = builder.Services.AddOpenTelemetry();
+
+if (!string.IsNullOrWhiteSpace(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    telemetry.UseOtlpExporter();
+}
 
 if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
 {
