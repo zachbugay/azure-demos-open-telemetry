@@ -24,20 +24,21 @@ builder.Logging.AddOpenTelemetry(logging =>
     logging.IncludeScopes = true;
 });
 
-builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults()
-    .UseAzureMonitorExporter(options =>
+var telemetry = builder.Services.AddOpenTelemetry()
+    .UseFunctionsWorkerDefaults();
+
+if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    telemetry.UseAzureMonitorExporter(options =>
     {
-        var credentialOptions = new DefaultAzureCredentialOptions
+        options.Credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             ManagedIdentityClientId = clientId
-        };
+        });
+    });
+}
 
-        var credential = new DefaultAzureCredential(credentialOptions);
-
-        options.Credential = new DefaultAzureCredential(credentialOptions);
-    })
-    .WithTracing(tracing =>
+telemetry.WithTracing(tracing =>
     {
         tracing.AddHttpClientInstrumentation();
         tracing.AddSqlClientInstrumentation();

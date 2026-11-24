@@ -23,20 +23,21 @@ builder.Logging.AddOpenTelemetry(logging =>
     logging.IncludeScopes = true;
 });
 
-builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults()
-    .UseAzureMonitorExporter(options =>
+var telemetry = builder.Services.AddOpenTelemetry()
+    .UseFunctionsWorkerDefaults();
+
+if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    telemetry.UseAzureMonitorExporter(options =>
     {
-        var credentialOptions = new DefaultAzureCredentialOptions
+        options.Credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             ManagedIdentityClientId = clientId
-        };
+        });
+    });
+}
 
-        var credential = new DefaultAzureCredential(credentialOptions);
-
-        options.Credential = new DefaultAzureCredential(credentialOptions);
-    })
-    .WithTracing(tracing =>
+telemetry.WithTracing(tracing =>
     {
         tracing.AddHttpClientInstrumentation();
         tracing.AddSource("Azure.Messaging.ServiceBus");
@@ -44,21 +45,32 @@ builder.Services.AddOpenTelemetry()
 
 builder.Services.AddHttpClient();
 
+var serviceBusConnectionString = configuration["ServiceBusConnection"];
 var serviceBusNamespace =
-    configuration["ServiceBusConnection:fullyQualifiedNamespace"]
-    ?? throw new InvalidOperationException(
-        "ServiceBusConnection__fullyQualifiedNamespace is not configured.");
+    configuration["ServiceBusConnection:fullyQualifiedNamespace"];
+
+if (string.IsNullOrWhiteSpace(serviceBusConnectionString) &&
+    string.IsNullOrWhiteSpace(serviceBusNamespace))
+{
+    throw new InvalidOperationException(
+        "ServiceBusConnection or ServiceBusConnection__fullyQualifiedNamespace is not configured.");
+}
 
 var queueName = configuration["ServiceBusCommandsQueueName"] ?? "sbq-commands";
 
 builder.Services.AddSingleton(_ =>
 {
+    if (!string.IsNullOrWhiteSpace(serviceBusConnectionString))
+    {
+        return new ServiceBusClient(serviceBusConnectionString);
+    }
+
     var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
     {
         ManagedIdentityClientId = clientId
     });
 
-    return new ServiceBusClient(serviceBusNamespace, credential);
+    return new ServiceBusClient(serviceBusNamespace!, credential);
 });
 
 builder.Services.AddSingleton(sp =>

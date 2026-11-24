@@ -12,7 +12,7 @@ namespace Bugay.Data.Generator;
 /// <summary>
 /// Uses Bogus to fabricate a batch of users, one account per user, and a random
 /// number of transactions per account, then POSTs each create request to the
-/// Producer API through API Management so the Producer publishes the command.
+/// Producer API directly or through API Management so the Producer publishes the command.
 ///
 /// Requests are sent in dependency order (user -> account -> transactions). The
 /// Producer generates the identifiers, so each response is read back to obtain the
@@ -50,13 +50,13 @@ public sealed class DataGenerator
             cancellationToken.ThrowIfCancellationRequested();
 
             var userRequest = userFaker.Generate();
-            var user = await PostAsync<CreateUserRequest, CreateUserCommand>("producer/users", userRequest, cancellationToken);
+            var user = await PostAsync<CreateUserRequest, CreateUserCommand>("users", userRequest, cancellationToken);
             _logger.LogInformation("Published user {UserId} ({FirstName} {LastName})",
                 user.Id, user.FirstName, user.LastName);
             published++;
 
             var account = await PostAsync<CreateAccountRequest, CreateAccountCommand>(
-                "producer/accounts",
+                "accounts",
                 new CreateAccountRequest(user.Id, faker.Finance.AccountName()),
                 cancellationToken);
             _logger.LogInformation("Published account {AccountId} for user {UserId}", account.Id, user.Id);
@@ -67,7 +67,7 @@ public sealed class DataGenerator
             {
                 var amount = faker.Finance.Amount(-1_000m, 1_000m, 4);
                 await PostAsync<CreateTransactionRequest, CreateTransactionCommand>(
-                    "producer/transactions",
+                    "transactions",
                     new CreateTransactionRequest(account.Id, amount),
                     cancellationToken);
                 published++;

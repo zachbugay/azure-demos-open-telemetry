@@ -1,0 +1,10 @@
+.azure
+.git
+.github
+.terraform
+.vs
+**/bin
+**/obj
+**/launchSettings.json
+docs
+infra

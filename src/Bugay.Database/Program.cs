@@ -19,8 +19,14 @@ var connectionString = configuration["DATABASE_CONNECTION_STRING"]
 builder.Services.AddSingleton<TokenCredential>(credential);
 builder.Services.AddSingleton(new DatabaseConnectionOptions(connectionString));
 
-builder.Services.AddOpenTelemetry()
-    .UseAzureMonitor(options => options.Credential = credential)
+var telemetry = builder.Services.AddOpenTelemetry();
+
+if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    telemetry.UseAzureMonitor(options => options.Credential = credential);
+}
+
+telemetry
     .WithTracing(tracing => tracing.AddHttpClientInstrumentation())
     .WithMetrics(metrics =>
     {

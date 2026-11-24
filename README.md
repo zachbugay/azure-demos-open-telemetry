@@ -27,6 +27,44 @@ We are using the latest [Azure Functions Dotnet Worker](https://github.com/Azure
 dotnet build src/Bugay.Funcs.slnx
 ```
 
+## Run locally with Docker Compose
+
+The local stack runs the producer and consumer Functions, the Azure Service
+Bus emulator, Azure SQL Edge as the Azure SQL-compatible local database, and
+Azurite for the Functions host storage:
+
+```bash
+docker compose up --build
+```
+
+The Functions use Microsoft's .NET 11 Azure Functions image, which includes
+the host. These two services target `linux/amd64` and use emulation on ARM64 hosts.
+
+The producer is available at `http://localhost:7071`. The one-shot database
+migrator creates `BugayDemo` and applies the schema before the consumer starts.
+`MSSQL_SA_PASSWORD` can override the local-only default password. By running
+the Service Bus emulator, you accept its Microsoft Software License Terms and
+the SQL Server Linux license terms.
+
+Run the data generator as a one-shot container against the local producer:
+
+```bash
+docker compose run --build --rm data-generator
+```
+
+This starts any required services, waits for the producer to be ready, generates
+10 users with accounts and transactions, and exits. The generator is opt-in and
+does not run with a normal `docker compose up`. To generate a different count:
+
+```bash
+docker compose run --build --rm -e GeneratorUserCount=25 data-generator
+```
+
+The local generator uses `ProducerBaseAddress=http://producer/api/`, so it needs
+neither an API Management subscription key nor Azure credentials. Existing
+`ApimBaseAddress` configuration still targets API Management. Azure Monitor
+export is enabled when `APPLICATIONINSIGHTS_CONNECTION_STRING` is configured.
+
 ## Create the database schema (DbUp)
 
 The SQL server is Entra-only, so sign in first (`az login`) with database access.

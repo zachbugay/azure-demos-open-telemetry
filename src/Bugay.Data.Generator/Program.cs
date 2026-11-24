@@ -11,15 +11,20 @@ using System;
 var builder = Host.CreateApplicationBuilder(args);
 var configuration = builder.Configuration;
 
-var managedIdentityClientId = configuration["AZURE_CLIENT_ID"];
-var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-{
-    ManagedIdentityClientId = managedIdentityClientId
-});
+var telemetry = builder.Services.AddOpenTelemetry();
 
-builder.Services.AddOpenTelemetry()
-    .UseAzureMonitor(options => options.Credential = credential)
-    .WithTracing(tracing => tracing.AddHttpClientInstrumentation())
+if (!string.IsNullOrWhiteSpace(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    telemetry.UseAzureMonitor(options =>
+    {
+        options.Credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            ManagedIdentityClientId = configuration["AZURE_CLIENT_ID"]
+        });
+    });
+}
+
+telemetry.WithTracing(tracing => tracing.AddHttpClientInstrumentation())
     .WithMetrics(metrics =>
     {
         metrics.AddProcessInstrumentation();
@@ -28,8 +33,13 @@ builder.Services.AddOpenTelemetry()
 
 var subscriptionKey = configuration["ApimSubscriptionKey"];
 
-var baseAddress = configuration["ApimBaseAddress"]
-    ?? throw new InvalidOperationException("Configuration value 'ApimBaseAddress' is required.");
+var baseAddress = configuration["ProducerBaseAddress"];
+if (string.IsNullOrWhiteSpace(baseAddress))
+{
+    var apimBaseAddress = configuration["ApimBaseAddress"]
+        ?? throw new InvalidOperationException("Configuration value 'ProducerBaseAddress' or 'ApimBaseAddress' is required.");
+    baseAddress = new Uri(new Uri(apimBaseAddress), "producer/").AbsoluteUri;
+}
 
 builder.Services.AddHttpClient<DataGenerator>(client =>
 {

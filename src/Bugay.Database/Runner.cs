@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Azure.Core;
 using DbUp;
 using DbUp.Engine;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -44,9 +45,22 @@ public sealed class Runner : BackgroundService
 
     public Task Execute(CancellationToken cancellationToken = default)
     {
+        var connection = new SqlConnectionStringBuilder(_connectionString);
+        var usesPasswordAuthentication =
+            !string.IsNullOrWhiteSpace(connection.UserID) &&
+            !string.IsNullOrWhiteSpace(connection.Password);
+
+        if (usesPasswordAuthentication)
+        {
+            EnsureDatabase.For.SqlDatabase(_connectionString);
+        }
+
         UpgradeEngine upgrader =
-            DeployChanges.To
-                .AzureSqlDatabaseWithIntegratedSecurity(_connectionString, tokenCredential: _credential)
+            (usesPasswordAuthentication
+                ? DeployChanges.To.SqlDatabase(_connectionString)
+                : DeployChanges.To.AzureSqlDatabaseWithIntegratedSecurity(
+                    _connectionString,
+                    tokenCredential: _credential))
                 .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
                 .WithTransactionPerScript()
                 .LogToConsole()

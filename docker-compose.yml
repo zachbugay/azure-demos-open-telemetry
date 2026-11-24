@@ -1,0 +1,169 @@
+name: azure-demos-open-telemetry
+
+x-service-bus-connection: &service-bus-connection >-
+  Endpoint=sb://servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+x-sql-password: &sql-password ${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}
+x-storage-connection: &storage-connection DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/azure-sql-db-server:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: *sql-password
+    ports:
+      - "1433:1433"
+    cap_add:
+      - SYS_PTRACE
+    volumes:
+      - sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123}", "-Q", "SELECT 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - azurite-data:/data
+
+  servicebus:
+    build:
+      context: .
+      dockerfile: docker/servicebus.Dockerfile
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: sql
+      MSSQL_SA_PASSWORD: *sql-password
+      EMULATOR_HTTP_PORT: "5300"
+      SQL_WAIT_INTERVAL: "60"
+    ports:
+      - "5672:5672"
+      - "5300:5300"
+
+  database-migrator:
+    build:
+      context: .
+      dockerfile: src/Bugay.Database/Dockerfile
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      SqlConnectionString: >-
+        Server=sql,1433;Database=BugayDemo;User Id=sa;Password=${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123};Encrypt=True;TrustServerCertificate=True;
+    restart: "no"
+
+  servicebus-ready:
+    image: mcr.microsoft.com/dotnet/aspnet:11.0
+    depends_on:
+      servicebus:
+        condition: service_started
+      sql:
+        condition: service_healthy
+    entrypoint:
+      - /bin/bash
+      - -c
+    command:
+      - |
+        for attempt in {1..60}; do
+          if exec 3<>/dev/tcp/servicebus/5672 && exec 4<>/dev/tcp/servicebus/5300; then
+            exec 3>&-
+            exec 4>&-
+            exit 0
+          fi
+          echo "Waiting for Service Bus emulator ($$attempt/60)..."
+          sleep 5
+        done
+        exit 1
+    restart: "no"
+
+  producer:
+    build:
+      context: .
+      dockerfile: src/Bugay.Func.Producer/Dockerfile
+    depends_on:
+      sql:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+      database-migrator:
+        condition: service_completed_successfully
+      servicebus:
+        condition: service_started
+      servicebus-ready:
+        condition: service_completed_successfully
+    environment:
+      AzureWebJobsStorage: *storage-connection
+      FUNCTIONS_WORKER_RUNTIME: dotnet-isolated
+      ServiceBusConnection: *service-bus-connection
+      ServiceBusCommandsQueueName: sbq-commands
+    ports:
+      - "7071:80"
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/localhost/80 &&
+          printf 'GET /admin/host/status HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          grep -qE '"state"[[:space:]]*:[[:space:]]*"Running"' <&3
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  consumer:
+    build:
+      context: .
+      dockerfile: src/Bugay.Func.Consumer/Dockerfile
+    depends_on:
+      sql:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+      database-migrator:
+        condition: service_completed_successfully
+      servicebus:
+        condition: service_started
+      servicebus-ready:
+        condition: service_completed_successfully
+    environment:
+      AzureWebJobsStorage: *storage-connection
+      FUNCTIONS_WORKER_RUNTIME: dotnet-isolated
+      ServiceBusConnection: *service-bus-connection
+      ServiceBusCommandsQueueName: sbq-commands
+      SqlConnectionString: >-
+        Server=sql,1433;Database=BugayDemo;User Id=sa;Password=${MSSQL_SA_PASSWORD:-LocalSql!Passw0rd123};Encrypt=True;TrustServerCertificate=True;
+    ports:
+      - "7072:80"
+
+  data-generator:
+    profiles:
+      - generator
+    build:
+      context: .
+      dockerfile: src/Bugay.Data.Generator/Dockerfile
+    depends_on:
+      producer:
+        condition: service_healthy
+      consumer:
+        condition: service_started
+    environment:
+      ProducerBaseAddress: http://producer/api/
+      GeneratorUserCount: ${GENERATOR_USER_COUNT:-10}
+    restart: "no"
+
+volumes:
+  azurite-data:
+  sql-data:
